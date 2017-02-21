@@ -2,6 +2,7 @@
 
 Some monitoring-plugins that didn't exist on Nagios Exchange or elsewhere.
 
+Plugin				| Description
 --------------------------------|---------------------------------------------------
 **check_crashplan_backup.sh**	| Checks the last complete CrashPlan backup
 **check_dirsize.sh**		| Checks that a directory is at least [KB] big
