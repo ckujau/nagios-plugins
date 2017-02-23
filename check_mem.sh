@@ -1,12 +1,34 @@
 #!/bin/sh
 #
 # (c)2017 Christian Kujau <lists@nerdbynature.de>
-# (c)2012 Lukasz Gogolin <lukasz.gogolin@gmail.com>
 #
 # Nagios plugin to monitor the memory usage.
 #
+# There are plenty of Nagios plugins available that are tracking
+# memory usage, all with various features and limits, see below.
+# Since not every system had Perl installed, I basically needed
+# a bourne shell version of check_mem.pl :-)
+#
+# * check_memory from nagios-plugins-contrib supports only
+#   Linux and needs Perl and Nagios::Plugin to be installed.
+#   http://repo.or.cz/thomas_code.git/blob/HEAD:/nagios/plugins/check_memory
+#
+# * check_memory.py supports only Linux and needs Python.
+#   https://exchange.nagios.org/directory/Plugins/System-Metrics/Memory/Check_Memory-2Epy/details
+#
+# * check_mem.sh supports only Linux but needs only a Bourne shell to run.
+#   https://exchange.nagios.org/directory/Plugins/System-Metrics/Memory/Check-mem-%28by-Nestor%40Toronto%29/details
+#
+# * check_memory.sh supports only Linux but needs only a Bourne shell to run.
+#   https://exchange.nagios.org/directory/Plugins/Operating-Systems/Linux/check_memory-2Esh/details
+#
+# * check_mem supports only Linux and needs Perl and Nagios::Plugin to be installed.
+#   https://github.com/jasonhancock/nagios-memory
+#
+# * check_mem.pl supports multiple operating systems but needs Perl installed.
+#   https://github.com/justintime/nagios-plugins
+#
 # TODO:
-# - Documentation
 # - Make it portable across as many systems as possible
 # - Rework arguments passing
 # - Fix performance data
@@ -101,13 +123,21 @@ case $(uname -s) in
 	#
 	memTotal_kb=$(expr $(/usr/sbin/sysctl -n hw.memsize) / 1024)
 	  page_size=$(/usr/sbin/sysctl -n hw.pagesize)
-	 memUsed_kb=$(vm_stat | awk "/^Pages active:/ {print \$NF * $page_size / 1024}")
+
+	# As per the description above, we'll just assume that "used" memory is "active" memory.
+	# The check_mem.pl script uses another metric (memTotal - memFree), but I don't care
+	# for "free" memory, as this number should be close to zero anyway.
+	 memUsed_kb=$(vm_stat | awk "/^Pages active:/     {print \$NF * $page_size / 1024}")
 	  memUsed_p=$((($memUsed_kb * 100) / $memTotal_kb))
 
-	# FIXME!
+	  memAct_kb=$memUsed_kb
+	memInact_kb=$(vm_stat | awk "/^Pages inactive:/   {print \$NF * $page_size / 1024}")
+	memWired_kb=$(vm_stat | awk "/^Pages wired down:/ {print \$NF * $page_size / 1024}")
+	 memFree_kb=$(vm_stat | awk "/^Pages free:/       {print \$NF * $page_size / 1024}")
+
 	# Generate output and performance data
-	O="Total: $(($memTotal_kb / 1024)) MB - Used: $(($memUsed_kb / 1024)) MB - $memUsed_p% used"
-	P="TOTAL=$memTotal_kb;;;; USED=$memUsed_kb;;;; ACTIVE=$memActive_kb;;;; INACTIVE=$memInactive_kb;;;; WIRED=$memWired_kb;;;;"
+	O="Total: $(($memTotal_kb / 1024)) MB - Used: $(($memUsed_kb / 1024)) MB - $memUsed_p% used / Active: $(($memAct_kb / 1024)) MB / Inactive: $(($memInact_kb / 1024)) MB / Wired: $(($memWired_kb / 1024)) MB / Free: $(($memFree_kb / 1024)) MB"
+	P="TOTAL=$memTotal_kb;;;; USED=$memUsed_kb;;;; ACTIVE=$memAct_kb;;;; INACTIVE=$memInact_kb;;;; WIRED=$memWired_kb;;;; FREE=$memFree_kb;;;;"
 	;;
 
 	*)
@@ -118,6 +148,7 @@ esac
 
 # DEBUG
 # echo "memTotal_kb: $memTotal_kb - memBuff_kb: $memBuff_kb - memCache_kb: $memCache_kb - memUsed_kb: $memUsed_kb - memUsed_p: $memUsed_p"
+# echo "memInact_kb: $memInact_kb - memInact_kb: $memInact_kb - memWired_kb: $memWired_kb - memFree_kb: $memFree_kb" 
 # exit 100
 
 # Check against thresholds
