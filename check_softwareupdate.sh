@@ -65,9 +65,9 @@ case $1 in
 	opkg)
 	#
 	# NOTE: "opkg update" can only be run as "root", but we don't want to install
-	# the sudo(8) package on the router and there's no su(1) either. Also, we don't
-	# want to store package lists in a different directory, as we may be already
-	# low on disk space and don't want to waste any more space.
+	# the sudo(8) or su(1) package on the router for obvious reasons. Also, we
+	# don't want to store a second set of package lists in a different directory,
+	# as we may be already low on disk space and don't want to waste any more space.
 	# Instead, we will create a root cronjob to regularly run "opkg update" to
 	# update the list of available packages and then run  "opkg list-upgradable" as
 	# the nagios user.
@@ -77,14 +77,18 @@ case $1 in
 	# time of 10 days sounds reasonable.
 	#
 	# Note: we have to make sure that /var/lock is writable by the "nagios" user.
-	# In lieu of setfacl(1), setting its permissions to 1777 will do.
+	# Later versions of opkg will honor the lock_file directive, but in our case
+	# we'll just create two cronjobs similar to:
+	#
+	# > 0 12 * * 1 /bin/opkg update 2>&1 | /usr/bin/logger -t CRON
+	# > 0 12 * * * /bin/chown root:nagios /var/lock/ && /bin/chmod 0775 /var/lock/
 	#
 	# Our Busybox/find doesn't have "mtime" yet (see OpenWRT #20583) and we don't
 	# have stat(1) either, so the following may look a bit weird, you better cover
 	# your eyes.
 	#
-	PLIST=/var/opkg-lists
-	[ -d $PLIST ] || exit 3
+	PLIST=/var/opkg-lists/*base
+	[ -f $PLIST ] || exit 3
 	TIMEDIFF=864000					# Should be no older than 10 days.
 	T_PACKAGE=$(date -r $PLIST +%s)
 	    T_NOW=$(date +%s)
