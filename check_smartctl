@@ -1,0 +1,302 @@
+#!/usr/bin/python
+
+# -*- coding: iso8859-1 -*-
+#
+# $Id: version.py 133 2006-03-24 10:30:20Z fuller $
+#
+# check_smartmon
+# Copyright (C) 2006  daemogorgon.net
+# Copyright (C) 2010 Orcan Ogetbil (orcan at nbcs.rutgers.edu)
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License along
+#   with this program; if not, write to the Free Software Foundation, Inc.,
+#   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+"""Package versioning
+"""
+
+
+import os.path
+import subprocess
+import sys
+import time
+
+from optparse import OptionParser
+from operator import itemgetter, attrgetter
+
+
+__author__ = "fuller <fuller@daemogorgon.net>"
+__version__ = "$Revision$"
+
+
+# path to smartctl
+_smartctlPath = "/usr/sbin/smartctl"
+
+# application wide verbosity (can be adjusted with -v [0-3])
+_verbosity = 0
+
+is_array = lambda var: isinstance(var, (list, tuple))
+
+def parseCmdLine(args):
+        """Commandline parsing."""
+
+        usage = "usage: %prog [options] device"
+        version = "%%prog %s" % (__version__)
+
+        parser = OptionParser(usage=usage, version=version)
+	parser.add_option("-d", "--devicetype", action="store", dest="devicetype", default="scsi", metavar="DEVICETYPE",
+			help="device type (scsi or megaraid,N or ...; defaults to scsi)")
+        parser.add_option("-v", "--verbosity", action="store",
+                        dest="verbosity", type="int", default=0,
+                        metavar="LEVEL", help="set verbosity level to LEVEL; defaults to 0 (quiet), \
+                                        possible values go up to 3")
+        parser.add_option("-w", "--warning-threshold", metavar="TEMP", action="store",
+                        type="int", dest="warningThreshold", default=55,
+                        help="set temperature warning threshold to given temperature (defaults to 55)")
+        parser.add_option("-c", "--critical-threshold", metavar="TEMP", action="store",
+                        type="int", dest="criticalThreshold", default="60",
+                        help="set temperature critical threshold to given temperature (defaults to 60)")
+
+	(options,devices) = parser.parse_args(sys.argv[1:])
+
+	if len(devices) ==0:
+		exitWithMessage(3,"UNKNOWN: Error, at least one device must be entered")
+	
+	return (options,devices)
+# end
+
+
+def checkDevice(path):
+        """Check if device exists and permissions are ok.
+        
+        Returns:
+                - 0 ok
+                - 1 no such device
+        """
+
+        vprint(3, "Check if %s does exist and can be read" % path)
+        if not os.access(path, os.F_OK):
+                return (1, "UNKNOWN: no such device found (%s)" % (path))
+	        # We can't check the read permissions as unprivileged user - Orcan
+		#elif not os.access(path, os.R_OK):
+                # return (2, "UNKNOWN: no read permission given (%s)" % (path))
+        else:
+                return (0, "")
+        # fi
+# end
+
+
+def checkSmartMonTools(path):
+        """Check if smartctl is available and can be executed.
+
+        Returns:
+                - 0 ok
+                - 1 no such file
+                - 2 cannot execute file
+        """
+
+        vprint(3, "Check if %s does exist and can be read" % path)
+        if not os.access(path, os.F_OK):
+                return (1, "UNKNOWN: cannot find %s" % path)
+        elif not os.access(path, os.X_OK):
+                return (2, "UNKNOWN: cannot execute %s" % path)
+        else:
+                return (0, "")
+        # fi
+# end
+
+
+def callSmartMonTools(path, devicetype, device):
+        # get health status
+	cmd = "sudo %s -d %s %s -a" % (path, devicetype, device)
+        vprint(3, "Get device health status: %s" % cmd)
+	
+	sp = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+	# See if smartctl exits cleanly
+	# This is a lot hacky since smartctl output is not consistent. It doesn't always
+	# close output streams stdout, stderr etc. I really don't like the following 
+	# code - Orcan
+	i = 0
+	poll = False
+	while i < 5:
+		if sp.poll():
+			poll = True
+			break
+		i = i+1
+		vprint(3, "smartctl did not exit yet. Waiting...")
+		time.sleep(0.1)
+		
+	if poll: # clean
+		(child_stdin, child_stdout, child_stderr) = (sp.stdin, sp.stdout, sp.stderr)
+		child_stdout = child_stdout.readlines()
+		child_stderr = child_stderr.readline()
+		vprint(3, "smartctl did exit cleanly")
+	else: # not clean. let's gather what we have
+		vprint(3, "smartctl did not exit cleanly")
+		(child_stdout, child_stderr) = sp.communicate()
+        	
+        if len(child_stderr):
+                return (3, "UNKNOWN: call exits unexpectedly (%s)" % child_stderr, "",
+                                "")
+        StatusOutput = ""
+	faultline = ""
+        for line in child_stdout:
+		if line.find("INVALID ARGUMENT TO -d") > 0 or line.find("Unknown device type") > -1:
+			faultline = line
+			continue
+		if faultline != "":
+			return (3, faultline + line, "")
+                StatusOutput = StatusOutput + line
+        # done
+	return (0 ,"", StatusOutput)
+# end
+
+
+def parseOutput(Message):
+        """Parse smartctl output
+
+        Returns (health status, temperature).
+        """
+
+        # parse health status and temperature
+	healthStatus=""
+        temperature = None
+        lines = Message.split("\n")
+        for line in lines:
+		if line.find("INQUIRY failed") > -1:
+			exitWithMessage(1, "UNKNOWN: " + line)
+		if line.startswith("SMART Health Status:") or line.startswith("SMART overall-health self-assessment"):
+			healthStatus = line.split()[-1]
+		if line.startswith("Current Drive Temperature:"):
+			try:
+				temperature = int(line.split()[-2])
+			except:
+				temperature = -100
+         		break
+
+	vprint(3, "Health status: %s" % healthStatus)
+        vprint(3, "Temperature: %s" %temperature)
+
+        return (healthStatus, temperature)
+# end
+
+
+def createReturnInfo(device, devicetype, healthStatus, temperature, warningThreshold,
+                criticalThreshold):
+        """Create return information according to given thresholds."""
+        # this is absolutely critical!
+	if healthStatus != "PASSED" and healthStatus != "OK":
+		if healthStatus == "":
+			return (2, "CRITICAL: device %s of type %s did not pass a health status." % (device, devicetype))
+                return (2, "CRITICAL: device %s of type %s passed health status: (%s)" % (device, devicetype, healthStatus))
+	elif temperature == None and devicetype != "ata":
+		return (2, "CRITICAL: device %s of type %s does not pass temperature information" % (device, devicetype))
+
+        elif temperature > criticalThreshold:
+                return (2, "CRITICAL: device %s of type %s temperature (%d) exceeds critical temperature threshold (%s)" % (device, devicetype, temperature, criticalThreshold))
+        elif temperature > warningThreshold:
+                return (1, "WARNING: device %s of type %s temperature (%d) exceeds warning temperature threshold (%s)" % (device, devicetype, temperature, warningThreshold))
+        else:
+		if temperature == None:
+			temperature = "N/A"
+		return (0, "OK: device %s of type %s is functional and stable (temperature: %s C)" % ( device , devicetype, str(temperature)))
+
+        # fi
+# end
+
+
+def exitWithMessage(value, message = ""):
+        """Exit with given value."""
+
+	if message:
+		print message
+        sys.exit(value)
+# end
+
+
+def vprint(level, message):
+        """Verbosity print.
+
+        Decide according to the given verbosity level if the message will be
+        printed to stdout.
+        """
+
+        if level <= verbosity:
+                print message
+        # fi
+# end
+
+def allDeviceTypes(devicetype):
+	dt_array = devicetype.split(",")
+	if len(dt_array) == 1:
+		return dt_array
+	dt_base = dt_array[0]
+	dt_all = []
+	for ext in dt_array[1:]:
+		dt_all.append(dt_base+","+ext)
+	return dt_all
+
+if __name__ == "__main__":
+        (options, devices) = parseCmdLine(sys.argv)
+        verbosity = options.verbosity
+
+        vprint(2, "Get device name(s)B")
+	overallvalue = 0
+	devicetypes = allDeviceTypes(options.devicetype)
+	full_message = []
+
+	for device in devices:
+	    for devicetype in devicetypes:
+		vprint(1, "Device: %s" % device)
+
+		# check if we can access 'path'
+		vprint(2, "Check device")
+		(value, message) = checkDevice(device)
+		if value != 0:
+			exitWithMessage(3, message)
+		# fi
+
+		# check if we have smartctl available
+		(value, message) = checkSmartMonTools(_smartctlPath)
+		if value != 0:
+			exitWithMessage(3, message)
+		# fi
+		vprint(1, "Path to smartctl: %s" % _smartctlPath)
+
+		# call smartctl and parse output
+		vprint(2, "Call smartctl")
+
+		(value, message, Output) = callSmartMonTools(_smartctlPath, devicetype, device)
+		if value != 0:
+			exitWithMessage(3, message)
+		vprint(2, "Parse smartctl output")
+		(healthStatus, temperature) = parseOutput(Output)
+		vprint(2, "Generate return information")
+		(value, message) = createReturnInfo(device, devicetype, healthStatus, temperature,
+						    options.warningThreshold, options.criticalThreshold)
+		if value > overallvalue:
+			overallvalue = value
+		full_message.append((value,message))
+		
+		full_message = sorted(full_message, key=itemgetter(1))
+		message_string = ""
+		for value,message in full_message:
+			message_string += message + " "
+		
+
+	# exit program
+	exitWithMessage(overallvalue, message_string[:-1])
+
+# fi
