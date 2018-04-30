@@ -122,8 +122,13 @@ case $1 in
 	egrep -q '^http' "$RESULT" && ERR=1 || ERR=0
 	;;
 
+	zypper)
+	sudo /usr/bin/zypper list-updates | awk '/^v/ {print $5}' > "$RESULT" || exit 3
+	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
+	;;
+
 	*)
-	echo "Usage: $(basename $0) [dnf|homebrew|macports|opkg|osx|pacman]"
+	echo "Usage: $(basename $0) [dnf|homebrew|macports|opkg|osx|pacman|zypper]"
 	exit 3
 	;;
 esac
