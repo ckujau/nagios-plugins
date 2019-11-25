@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
 # -*- coding: iso8859-1 -*-
 #
@@ -179,7 +179,7 @@ def parseOutput(Message):
 			exitWithMessage(1, "UNKNOWN: " + line)
 		if line.startswith("SMART Health Status:") or line.startswith("SMART overall-health self-assessment"):
 			healthStatus = line.split()[-1]
-		if line.startswith("Current Drive Temperature:"):
+		if line.startswith("Temperature:"):
 			try:
 				temperature = int(line.split()[-2])
 			except:
