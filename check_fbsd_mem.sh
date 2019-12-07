@@ -192,13 +192,13 @@ if [ "$measure_swap" = 1 ]; then
 	# checks critical parameter if any specified
 	if [ -n "$CRIT" ]; then
 		if [ $SWAP_USED -gt $CRIT ]; then
-			echo -n "CRITICAL - $OUTPUT"
+			printf "CRITICAL - $OUTPUT"
 			exit $STATE_CRITICAL
 		fi
 	fi
         if [ -n "$WARN" ];then
                 if [ $SWAP_USED -gt $WARN ]; then
-                        echo -n "WARNING - $OUTPUT"
+                        printf "WARNING - $OUTPUT"
                         exit $STATE_WARNING
                 fi
         fi
@@ -207,18 +207,18 @@ else
 	# checks critical parameter if any specified
 	if [ -n "$CRIT" ]; then
 		if [ $USED_RAM -gt $CRIT ]; then
-			echo -n "CRITICAL - $OUTPUT"
+			printf "CRITICAL - $OUTPUT"
 			exit $STATE_CRITICAL
 		fi
 	fi
 	# checks warning parameter if any specified
 	if [ -n "$WARN" ];then
 		if [ $USED_RAM -gt $WARN ]; then
-			echo -n "WARNING - $OUTPUT"
+			printf "WARNING - $OUTPUT"
 			exit $STATE_WARNING
 		fi
 	fi 
 fi
 # output for STATE_OK
-echo -n "OK - $OUTPUT"
+printf "OK - $OUTPUT"
 exit $STATE_OK
