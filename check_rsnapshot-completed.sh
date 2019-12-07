@@ -35,7 +35,7 @@ for f in "$CONFDIR"/*.conf; do
 		host="$HOST"
 	fi
 
-	grep "$host" "$LOGFILE" | grep finished | egrep -q "$SEARCH"
+	grep "$host" "$LOGFILE" | egrep 'finished|already has a daily backup from today' | egrep -q "^(${SEARCH})"
 	if [ $? -ne 0 ]; then
 		MSG="${MSG}$host "
 		ERR=$((ERR+1))
