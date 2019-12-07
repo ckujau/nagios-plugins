@@ -13,6 +13,7 @@ Plugin				| Description
 **check_ipns.sh**		| Check if our IP name space is not leaking traffic
 **check_mem.sh**		| Checks the memory usage (TBD)
 **check_mem.pl**		| From [check_mem.pl](https://github.com/justintime/nagios-plugins/blob/master/check_mem/check_mem.pl "Revision of check_mem.pl that splits out cache memory from application memory") (MIT License)
+**check_mysql_health.pl**	| From [check_mysql_health](https://labs.consol.de/nagios/check_mysql_health/ "check_mysql_health") (GPL)
 **check_oc_backup.sh**		| Checks the number of entries of an address book and calender on an Owncloud instance
 **check_rsnapshot-completed.sh**| Checks that all configured rsnapshot hosts have a current backup
 **check_sensors_adt7467.sh**	| Checks the adt7467 sensor in Macintosh systems
