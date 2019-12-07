@@ -16,6 +16,7 @@ Plugin				| Description
 **check_mysql_health.pl**	| From [check_mysql_health](https://labs.consol.de/nagios/check_mysql_health/ "check_mysql_health") (GPL)
 **check_oc_backup.sh**		| Checks the number of entries of an address book and calender on an Owncloud instance
 **check_rsnapshot-completed.sh**| Checks that all configured rsnapshot hosts have a current backup
+**check_sensors_acpi.sh**	| Checks battery & AC status via ACPI
 **check_sensors_adt7467.sh**	| Checks the adt7467 sensor in Macintosh systems
 **check_smartctl**		| From [check_smartctl](https://exchange.nagios.org/directory/Plugins/Operating-Systems/Linux/check_smartctl/details "check_smartctl") (GPL)
 **check_socket.sh**		| Checks for the existence of a particular socket
