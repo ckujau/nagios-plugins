@@ -8,10 +8,16 @@ trap "rm -f $RESULT" EXIT INT TERM HUP
 
 ERR=3
 case $1 in
+	apk)
+	sudo /sbin/apk update > /dev/null || ERR=3
+	sudo /sbin/apk upgrade --simulate | awk '/Upgrading/ {print $3}' > "$RESULT" || ERR=3
+	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
+	;;
+
 	dnf)
-	# FIXME: This check isn't working with SELinux enabled, probably due
-	# to RH# 1422381
-	# pam_systemd(sudo:session): Failed to create session: Bad message for NRPE check
+	# FIXME: This check isn't working right now, probably due to
+	# RH# 1422381 / https://bugzilla.redhat.com/show_bug.cgi?id=1422381
+#	echo "ENV" && env && echo "SET" && set && date
 	#
 	# This will need the following sudoers(5) rule:
 	# > nrpe    ALL=(ALL) NOPASSWD: /usr/bin/dnf check-update
@@ -19,7 +25,6 @@ case $1 in
 	# When using SELinux, we need to set the security context for this script:
 	# > /sbin/restorecon -v ../check_softwareupdate.sh
 	#
-#	echo "ENV" && env && echo "SET" && set && date
 	sudo /usr/bin/dnf check-update > "$RESULT"
 	case $? in
 		0)
@@ -37,53 +42,6 @@ case $1 in
 	esac
 	;;
 
-	dnf_cache)
-	# Since the 'dnf' mode may not work for SELinux systems yet (see above),
-	# we will check for software updates similar to what we do in 'opkg' mode:
-	# a cron job will update the repositories regularly and store its output
-	# to a predefined location and we just parse that file.
-	#
-	# > 42 23 * * * /usr/bin/dnf check-update > /var/run/dnf-check-update.out
-	#
-	# Still, we need at least the following SELinux policy to be loaded so
-	# that this plugin will be able to 1) create and remove a temporary file
-	# and 2) access the output file above:
-	#
-	# ----------------------------------------------------------- 
-	# module local-dnf 1.0;
-	# require {
-	#	type nrpe_t;
-	#	type var_run_t;
-	#	type tmp_t;
-	#	class file { getattr open read create write unlink };
-	#	class dir  { add_name write remove_name };
-	#	}
-	# #============= nrpe_t ==============
-	# allow nrpe_t var_run_t:file { getattr open read };
-	# allow nrpe_t tmp_t:dir  { add_name write remove_name };
-	# allow nrpe_t tmp_t:file { create open write unlink };
-	# ----------------------------------------------------------- 
-	#
-	# > checkmodule -M -m local-dnf.te -o local-dnf.mod
-	# > semodule_package -m local-dnf.mod -o local-dnf.pp
-	# > semodule -v -i local-dnf.pp
-	#
-	CACHE=/var/run/dnf-check-update.out
-	[ -f $CACHE ] || exit 3
-	TIMEDIFF=864000					# Should be no older than 10 days.
-	 T_CACHE=$(date -r $CACHE +%s)
-	   T_NOW=$(date +%s)
-
-	# Check if our package lists are somewhat current.
-	if [ $(expr $T_NOW - $TIMEDIFF ) -gt $T_CACHE ]; then
-		echo "The last dnf-check-update run was too long ago!" > "$RESULT"
-		ERR=3
-	else
-		egrep -v 'Last metadata|^$' "$CACHE" > "$RESULT" || exit 3
-		egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
-	fi
-	;;
-
 	homebrew)
 	# This will need the following sudoers(5) rules:
 	# > nagios  ALL=(admin) NOPASSWD:SETENV: /usr/local/bin/brew update
@@ -96,7 +54,6 @@ case $1 in
 	macports)
 	# This will need the following sudoers(5) rule:
 	# > nagios  ALL=(ALL) NOPASSWD: /opt/local/bin/port sync
-	#
 	sudo /opt/local/bin/port sync > /dev/null || exit 3
 	#
 	# We need to set HOME here, because:
@@ -114,9 +71,9 @@ case $1 in
 	opkg)
 	#
 	# NOTE: "opkg update" can only be run as "root", but we don't want to install
-	# the sudo(8) or su(1) package on the router for obvious reasons. Also, we
-	# don't want to store a second set of package lists in a different directory,
-	# as we may be already low on disk space and don't want to waste any more space.
+	# the sudo(8) package on the router and there's no su(1) either. Also, we don't
+	# want to store package lists in a different directory, as we may be already
+	# low on disk space and don't want to waste any more space.
 	# Instead, we will create a root cronjob to regularly run "opkg update" to
 	# update the list of available packages and then run  "opkg list-upgradable" as
 	# the nagios user.
@@ -126,23 +83,19 @@ case $1 in
 	# time of 10 days sounds reasonable.
 	#
 	# Note: we have to make sure that /var/lock is writable by the "nagios" user.
-	# Later versions of opkg will honor the lock_file directive, but in our case
-	# we'll just create two cronjobs similar to:
-	#
-	# > 42 23 * * * /bin/opkg update 2>&1 | /usr/bin/logger -t CRON
-	# > 42 23 * * * /bin/chown root:nagios /var/lock/ && /bin/chmod 0775 /var/lock/
+	# In lieu of setfacl(1), setting its permissions to 1777 will do.
 	#
 	# Our Busybox/find doesn't have "mtime" yet (see OpenWRT #20583) and we don't
 	# have stat(1) either, so the following may look a bit weird, you better cover
 	# your eyes.
 	#
-	PLIST=/var/opkg-lists/*base
-	[ -f $PLIST ] || exit 3
-	 TIMEDIFF=864000				# Should be no older than 10 days.
+	PLIST=/var/opkg-lists
+	[ -d $PLIST ] || exit 3
+	TIMEDIFF=864000					# Should be no older than 10 days.
 	T_PACKAGE=$(date -r $PLIST +%s)
 	    T_NOW=$(date +%s)
-	 MIN_PKGS=4000					# We expect ~4000 packages.
-	 CNT_PKGS=$(opkg list | wc -l)
+	MIN_PKGS=4000					# We expect ~4000 packages.
+	CNT_PKGS=$(opkg list | wc -l)
 
 	# Check if our package lists are somewhat complete.
 	if [ $CNT_PKGS -lt $MIN_PKGS ]; then
@@ -161,7 +114,7 @@ case $1 in
 	fi
 	;;
 
-	macos|osx)
+	osx)
 	# This will need the following sudoers(5) rule:
 	# > nagios  ALL=(ALL) NOPASSWD: /usr/sbin/softwareupdate -l
 	sudo /usr/sbin/softwareupdate -l > "$RESULT" 2>&1 || exit 3
@@ -176,16 +129,12 @@ case $1 in
 	;;
 
 	zypper)
-	sudo /usr/bin/zypper list-updates | awk '/^v/ {print $5}' > "$RESULT" || exit 3
+	sudo /usr/bin/zypper list-updates | awk '/^v/ {printf $5}' > "$RESULT" || exit 3
 	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
 	*)
-<<<<<<< HEAD
-	echo "Usage: $(basename $0) [dnf|homebrew|macports|opkg|osx|pacman|zypper]"
-=======
-	echo "Usage: $(basename $0) [dnf|dnf_cache|homebrew|macports|opkg|macos|pacman]"
->>>>>>> 3c18f06f449951a4b380c73fb917d505ea83a629
+	echo "Usage: $(basename $0) [apk|dnf|homebrew|macports|opkg|osx|pacman|zypper]"
 	exit 3
 	;;
 esac
@@ -212,4 +161,3 @@ case $ERR in
 	exit 3
 	;;
 esac
-
