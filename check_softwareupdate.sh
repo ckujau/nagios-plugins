@@ -11,7 +11,39 @@ case $1 in
 	apk)
 	sudo /sbin/apk update > /dev/null || ERR=3
 	sudo /sbin/apk upgrade --simulate | awk '/Upgrading/ {print $3}' > "$RESULT" || ERR=3
-	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
+	if [ -s "$RESULT" ]; then
+		egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
+	fi
+	;;
+
+	cron)
+	# Not every system will have sudo/doas installed to have the Nagios user check for
+	# updates, just look at the "opkg" variant below. Let's try to provide a somewhat
+	# general method to check for updates where we will rely on a cronjob on the system,
+	# regularly checking for updates and writing in some standardized way to a state
+	# file. Here, we will only check that state file.
+	STATE=/var/tmp/nagios_updates.txt
+
+	[ -f $STATE ] || exit 3
+	[ -s $STATE ] || exit 3
+	TIMEDIFF=864000					# State file should be no older than 10 days.
+	T_PACKAGE=$(date -r $STATE +%s)
+	    T_NOW=$(date +%s)
+
+	# Check if our package lists are somewhat complete.
+	if [ $CNT_PKGS -lt $MIN_PKGS ]; then
+		echo "Our package lists may not be complete!" > "$RESULT"
+		ERR=3
+	fi
+
+	# Check if our package lists are somewhat current.
+	if [ $(expr $T_NOW - $TIMEDIFF ) -gt $T_PACKAGE ]; then
+		echo "Package lists are too old!" > "$RESULT"
+		ERR=3
+	else
+		opkg list-upgradable > "$RESULT" || exit 3
+		sed '/Multiple packages .* providing same name/d' -i "$RESULT"
+		egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
 	dnf)
