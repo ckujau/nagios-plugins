@@ -163,7 +163,7 @@ case $1 in
 	;;
 
 	*)
-	echo "Usage: $(basename $0) [apk|dnf|homebrew|macports|opkg|osx|pacman|zypper]"
+	echo "Usage: $(basename $0) [apk|cron|dnf|homebrew|macports|opkg|osx|pacman|zypper]"
 	exit 3
 	;;
 esac
