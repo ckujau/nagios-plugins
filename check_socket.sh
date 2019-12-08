@@ -16,11 +16,7 @@ else
 fi
 
 # Netstat (from net-tools) is obsolete, so let's use ss (from iproute2) now.
-# Note: wc(1) didn't work because ss stopped producing a newline, but grep(1)
-# works. See:
-# > ss: fix end-of-line printing in misc/ss.c
-# > https://lore.kernel.org/netdev/20191127052118.163594-1-brianvv@google.com/T/#u
-COUNT=$(ss -Hlx src $P | grep -c LISTEN)
+COUNT=$(ss -Hlx src $P | grep -c LISTEN)		# EOL printing in misc/ss.c workaround
 
 # Needs more logic :-\
 if   [ $COUNT -ge $MAX ]; then

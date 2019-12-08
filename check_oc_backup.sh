@@ -23,15 +23,17 @@ _die() {
 	exit "$2"
 }
 
-# FIXME: should this be parameterized?
-STATEDIR=/var/lib/naemon/check_oc_backup
-[ -d "$STATEDIR" ] || mkdir -m0700 "$STATEDIR" || _die "$STATEDIR could not be created!" 3
-
 # Parsing options
-while getopts "d:w:c:vuh" opt; do
+while getopts "d:s:w:c:vuh" opt; do
 	case $opt in
 		d)
 		DIR="$OPTARG"
+		;;
+
+		s)
+		# Example: /var/lib/{naemon,nagios}/check_oc_backup
+		STATEDIR="$OPTARG"
+		[ -d "$STATEDIR" ] || mkdir -m0700 "$STATEDIR" || _die "$STATEDIR could not be created!" 3
 		;;
 
 		w)
@@ -51,13 +53,13 @@ while getopts "d:w:c:vuh" opt; do
 		;;
 
 		h)
-		echo "$(basename $0) -d [dir] -w [deviate%] -c [deviate%] [-v] [-u]"
+		echo "$(basename $0) -d [dir] -s [statedir] -w [deviate%] -c [deviate%] [-v] [-u]"
 		;;
 	esac
 done
 
 # Sanity checks
-[ ! -d "$DIR" ] || [ -z "$WARN" ] || [ -z "$CRIT"  ] && _die "Missing arguments, bailing out." 3
+[ ! -d "$DIR" ] || [ -z "$WARN" ] || [ -z "$CRIT"  ] && _die "Missing/wrong arguments, bailing out." 3
 
 # Initialze error values
 ERR_CRIT=0

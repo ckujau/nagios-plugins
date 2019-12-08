@@ -11,7 +11,7 @@
 #
 # * check_memory from nagios-plugins-contrib supports only
 #   Linux and needs Perl and Nagios::Plugin to be installed.
-#   http://repo.or.cz/thomas_code.git/blob/HEAD:/nagios/plugins/check_memory
+#   https://repo.or.cz/thomas_code.git/blob/HEAD:/nagios/plugins/check_memory
 #
 # * check_memory.py supports only Linux and needs Python.
 #   https://exchange.nagios.org/directory/Plugins/System-Metrics/Memory/Check_Memory-2Epy/details

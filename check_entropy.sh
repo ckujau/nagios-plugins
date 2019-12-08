@@ -5,8 +5,9 @@
 #
 # Similar plugins exist, but all seemed overly complicated and a bourne shell
 # version is nice because it doesn't need Perl or Python installed.
-#   Perl: http://www.unixadm.org/software/nagios-stuff/checks/check_entropy
-# Python: https://anonscm.debian.org/cgit/pkg-nagios/pkg-nagios-plugins-contrib.git/tree/dsa/checks/dsa-check-entropy
+#
+#   Perl: https://www.unixadm.org/software/nagios-stuff/checks/check_entropy
+# Python: https://salsa.debian.org/dsa-team/mirror/dsa-nagios/blob/master/dsa-nagios-checks/checks/dsa-check-entropy
 #
 while getopts ":w:c:" opt; do
 	case $opt in

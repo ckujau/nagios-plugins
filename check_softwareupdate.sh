@@ -44,8 +44,9 @@ case $1 in
 	;;
 
 	dnf)
-	# FIXME: This check isn't working right now, probably due to
-	# RH# 1422381 / https://bugzilla.redhat.com/show_bug.cgi?id=1422381
+	# FIXME: This check isn't working right now, probably due to:
+	# > Failed to create session: Bad message for NRPE check
+	# > https://bugzilla.redhat.com/show_bug.cgi?id=1422381
 #	echo "ENV" && env && echo "SET" && set && date
 	#
 	# This will need the following sudoers(5) rule:
@@ -87,11 +88,11 @@ case $1 in
 	#
 	# We need to set HOME here, because:
 	#
-	# MacPorts provider needs to set HOME while running `port` command.
-	# https://projects.puppetlabs.com/issues/13284
+	# > MacPorts provider needs to set HOME while running `port` command.
+	# > https://projects.puppetlabs.com/issues/13284
 	# Fixed by: 
-	# Bug #13284 - missing env vars during provider command execution #606
-	# https://github.com/puppetlabs/puppet/pull/606
+	# > Bug #13284 - missing env vars during provider command execution #606
+	# > https://github.com/puppetlabs/puppet/pull/606
 	#
 	HOME=/var/lib/nagios /opt/local/bin/port echo outdated > "$RESULT" || exit 3
 	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0

@@ -1,7 +1,8 @@
 # Monitoring Plugins
 
-Some monitoring-plugins that didn't exist on Nagios Exchange or elsewhere. Content
-is available under [GNU General Public License](https://www.gnu.org/licenses/gpl-2.0.html "GNU General Public License, version 2") unless otherwise noted.
+Some monitoring-plugins that didn't exist on Nagios Exchange or elsewhere. All scripts
+are available under [GNU General Public License](https://www.gnu.org/licenses/gpl-2.0.html "GNU General Public License, version 2")
+unless otherwise noted. Most of these scripts are not portable and appear to be very system specific.
 
 Plugin				| Description
 --------------------------------|---------------------------------------------------
@@ -21,5 +22,5 @@ Plugin				| Description
 **check_smartctl**		| From [check_smartctl](https://exchange.nagios.org/directory/Plugins/Operating-Systems/Linux/check_smartctl/details "check_smartctl") (GPL)
 **check_socket.sh**		| Checks for the existence of a particular socket
 **check_softwareupdate.sh**	| Checks for (OS) software updates
-**check_swap_osx**		| Checks swap usage on macOS systems
+**check_swap_osx.sh**		| Checks swap usage on macOS systems
 **check_vbox_snapshot_age.sh**	| Checks for old VirtualBox snapshots
