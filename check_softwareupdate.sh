@@ -71,6 +71,7 @@ case $1 in
 	;;
 
 	homebrew)
+	cd /tmp || exit 3
 	# This will need the following sudoers(5) rules:
 	# > nagios  ALL=(admin) NOPASSWD:SETENV: /usr/local/bin/brew update
 	# > nagios  ALL=(admin) NOPASSWD:SETENV: /usr/local/bin/brew outdated
