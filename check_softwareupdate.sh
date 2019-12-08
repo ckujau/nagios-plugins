@@ -11,9 +11,7 @@ case $1 in
 	apk)
 	sudo /sbin/apk update > /dev/null || ERR=3
 	sudo /sbin/apk upgrade --simulate | awk '/Upgrading/ {print $3}' > "$RESULT" || ERR=3
-	if [ -s "$RESULT" ]; then
-		egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
-	fi
+	egrep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
 	cron)
