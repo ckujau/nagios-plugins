@@ -20,9 +20,7 @@ case $1 in
 	# general method to check for updates where we will rely on a cronjob on the system,
 	# regularly checking for updates and writing in some standardized way to a state
 	# file. Here, we will only check that state file.
-	STATE=/var/tmp/nagios_updates.txt
-
-	[ -r $STATE ] || exit 3
+	[ -r "$2" ] && STATE="$2" || exit 3
 	TIMEDIFF=172800					# State file should be no older than 2 days.
 	T_PACKAGE=$(date -r $STATE +%s)
 	    T_NOW=$(date +%s)
