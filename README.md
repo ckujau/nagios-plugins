@@ -21,6 +21,7 @@ Plugin				| Description
 **check_sensors_adt7467.sh**	| Checks the adt7467 sensor in Macintosh systems
 **check_smartctl**		| From [check_smartctl](https://exchange.nagios.org/directory/Plugins/Operating-Systems/Linux/check_smartctl/details "check_smartctl") (GPL)
 **check_socket.sh**		| Checks for the existence of a particular socket
-**check_softwareupdate.sh**	| Checks for (OS) software updates
+**check_softwareupdate.sh**	| Checks for software updates
+**check_softwareupdate_helper** | Helper script for check_softwareupdate.sh
 **check_swap_osx.sh**		| Checks swap usage on macOS systems
 **check_vbox_snapshot_age.sh**	| Checks for old VirtualBox snapshots

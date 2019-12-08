@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# (c)2019 Christian Kujau <lists@nerdbynature.de>
+#
+# Helper script for "check_softwareupdate.sh cron", which will expect
+# a readable text file listing available package updates. Each line
+# is expected to start with "Package: " but sed(1) can help with that.
+#
+# A cron job would look like this:
+# 
+# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper dnf /var/run/nrpe/nagios_updates.txt
+# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper apk /var/tmp/nagios_updates.txt
+#
+_usage() {
+	echo "Usage: $(basename $0) [apk|dnf] [state file]"
+	echo "   Ex: $(basename $0) apk /var/tmp/nagios_updates.txt"
+	echo "   Ex: $(basename $0) dnf ~nrpe/nagios_updates.txt"
+	exit 1
+}
+
+# Sanity check
+[ $# -eq 2 ] && STATE="$2" || _usage
+
+if [ -f ${STATE} ] && [ ! -O ${STATE} ]; then
+	echo "State file ${STATE} already in place but not owned by UID ${UID}!"
+	exit 1
+else
+	touch ${STATE} && chmod a+r ${STATE}
+fi
+
+case $1 in
+	apk)
+	apk update --quiet
+	apk upgrade --simulate | grep Upgrading | sed 's/.*Upgrading/Package:/' > "$STATE"
+	;;
+
+	dnf)
+	dnf check-update | egrep -v '^Last metadata|^$' | sed 's/^/Package: /'  > "$STATE"
+	;;
+
+	*)
+	echo "Usage: $(basename $0) [apk|dnf]"
+	exit 1
+	;;
+esac
