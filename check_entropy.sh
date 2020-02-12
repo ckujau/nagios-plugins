@@ -11,32 +11,30 @@
 #
 while getopts ":w:c:" opt; do
 	case $opt in
-		w)
-		warn=$OPTARG ;;
-
-		c)
-		crit=$OPTARG ;;
+		w) warn=$OPTARG ;;
+		c) crit=$OPTARG ;;
+		*) exit 3 ;;
 	esac
 done
 
 # Both warn and crit are needed
 if [ -z "$warn" ] || [ -z "$crit" ]; then
-	echo "Usage: $(basename $0) -w num -c num"
+	echo "Usage: $(basename "$0") -w num -c num"
 	exit 3
 fi
 
 # warn should be greater than crit	
-if [ $warn -lt $crit ]; then
+if [ "$warn" -lt "$crit" ]; then
 	echo "UNKNOWN: warn ($warn) < crit ($crit)"
 	exit 3
 fi
 
 # TODO: how about other operating systems?
 ENTROPY=$(/sbin/sysctl -n kernel.random.entropy_avail)
-if [ $ENTROPY -lt $crit ]; then
+if [ "$ENTROPY" -lt "$crit" ]; then
 	echo "CRITICAL: Too little entropy ($ENTROPY) in the pool (warn: $warn, crit: $crit)"
 	exit 2
-elif [ $ENTROPY -lt $warn ]; then
+elif [ "$ENTROPY" -lt "$warn" ]; then
 	echo "WARNING: Too little entropy ($ENTROPY) in the pool (warn: $warn, crit: $crit)"
 	exit 2
 else

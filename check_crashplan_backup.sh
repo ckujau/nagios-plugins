@@ -12,12 +12,13 @@ while getopts "f:w:c:" opt; do
 	f) file="$OPTARG" ;;
 	w) warn="$OPTARG" ;;
 	c) crit="$OPTARG" ;;
+	*) exit 3;;
 	esac
 done
 
 # Sanity checks
 if [ ! -f "$file" ] || [ -z "$warn" ] || [ -z "$crit" ]; then
-	echo "Usage: $(basename $0) -f [cp.properties] -w [hours] -c [hours]"
+	echo "Usage: $(basename "$0") -f [cp.properties] -w [hours] -c [hours]"
 	exit 3
 fi
 
@@ -31,23 +32,23 @@ fi
 # lastBackupTimestamp_1=2017-02-14T23\:34\:26\:582
 #
 # Let's use "lastCompletedBackupTimestamp" for now, until it breaks.
-last=$(date -d "$(awk -F= '/^lastCompletedBackupTimestamp=/ {print $2}' $file | sed 's|T| |;s|\\||g;s|:[0-9]*$||')" +%s)
+last=$(date -d "$(awk -F= '/^lastCompletedBackupTimestamp=/ {print $2}' "$file" | sed 's|T| |;s|\\||g;s|:[0-9]*$||')" +%s)
 
 # Get the current time & date in epoch time
 curr=$(date +%s)
 
 # Difference in hours (rounded down, w/o decimals)
-diff=$((($curr - $last) / 60 / 60))
+diff=$(((curr - last) / 60 / 60))
 
-if   [ $diff -ge $crit ]; then
-	echo "CRITICAL: Last backup completed $diff hours ago! ($(date -d @$last))"
+if   [ $diff -ge "$crit" ]; then
+	echo "CRITICAL: Last backup completed $diff hours ago! ($(date -d @"$last"))"
 	exit 2
 
-elif [ $diff -ge $warn ]; then
-	echo "WARNING: Last backup completed $diff hours ago! ($(date -d @$last))"
+elif [ $diff -ge "$warn" ]; then
+	echo "WARNING: Last backup completed $diff hours ago! ($(date -d @"$last"))"
 	exit 1
 
 else
-	echo "OK: Last backup completed $diff hours ago. ($(date -d @$last))"
+	echo "OK: Last backup completed $diff hours ago. ($(date -d @"$last"))"
 	exit 0
 fi

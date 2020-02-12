@@ -11,12 +11,12 @@
 # nagios ALL=(alice) NOPASSWD: /usr/local/bin/check_vbox_snapshot_age.sh
 #
 if [ $# -lt 4 ]; then
-	echo "Usage: $(basename $0) [-w days] [-c days]"
+	echo "Usage: $(basename "$0") [-w days] [-c days]"
 	exit 0
 else
 	# Convert days to seconds
-	WARN="$(expr $2 \* 24 \* 60 \* 60)"
-	CRIT="$(expr $4 \* 24 \* 60 \* 60)"
+	WARN="$(( "$2" * 24 * 60 * 60))"
+	CRIT="$(( "$4" * 24 * 60 * 60))"
 	 NOW=$(date +%s)
 fi
 
@@ -34,19 +34,19 @@ for vm in $(vboxmanage list vms | awk '{print $1}' | sed 's|"||g'); do
 	[ -f "$FILE" ] || continue
 
 	MTIME=$(stat -c %Y "$FILE")
-	  AGE=$(expr $NOW - $MTIME)
-	 DAYS=$(expr $AGE / 60 / 60 / 24)			# Convert back to days
+	  AGE=$(( NOW - MTIME ))
+	 DAYS=$(( AGE / 60 / 60 / 24))			# Convert back to days
 
 	# See if the file's age is within limits
-	if   [ $AGE -ge $CRIT ]; then
+	if   [ "$AGE" -ge "$CRIT" ]; then
 		echo "CRITICAL: Snapshot for $vm ($FILE) is $DAYS days old!"
 		CRITICAL=$((CRITICAL+1))
 
-	elif [ $AGE -ge $WARN ]; then
+	elif [ "$AGE" -ge "$WARN" ]; then
 		echo "WARNING: Snapshot for $vm ($FILE) is $DAYS days old!"
 		 WARNING=$((WARNING+1))
 
-	elif [ $AGE -lt $WARN ]; then
+	elif [ "$AGE" -lt "$WARN" ]; then
 		echo "OK: Snapshot for $vm is $DAYS days old."
 	
 	else

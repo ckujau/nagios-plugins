@@ -8,14 +8,14 @@
 URL="https://what.is.my/ip.jsp"			# Must return a our own IP address!
 
 if [ -z "$1" ]; then
-	echo "Usage: $(basename $0) [namespace]"
+	echo "Usage: $(basename "$0") [namespace]"
 	exit 3
 else
 	NS="$1"
 fi
 
 IP_REAL=$(                  curl --connect-timeout 20 --silent "$URL")
- IP_VPN=$(ip netns exec $NS curl --connect-timeout 20 --silent "$URL")
+ IP_VPN=$(ip netns exec "$NS" curl --connect-timeout 20 --silent "$URL")
 
 if [ -z "$IP_REAL" ] || [ -z "$IP_VPN" ]; then
 	echo "UNKNOWN: Cannot determine IP address."

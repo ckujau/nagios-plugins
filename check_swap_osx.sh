@@ -4,37 +4,24 @@
 # check_swap for macOS
 #
 usage() {
-	echo "Usage: $(basename $0) -w WARN% -c CRIT%"
-	exit $1
+	echo "Usage: $(basename "$0") -w WARN% -c CRIT%"
+	exit "$1"
 }
 
 while getopts ":h:w:c:" opt; do
 	case $opt in
-	h)
-	usage 0
-	;;
-
-	w)
-	WARN="$OPTARG"
-	;;
-
-	c)
-	CRIT="$OPTARG"
-	;;
-
-	:)
-	echo "Option -$OPTARG requires an argument."
-	usage 2
-	;;
-
+	h) usage 0 ;;
+	w) WARN="$OPTARG" ;;
+	c) CRIT="$OPTARG" ;;
+	:|*) echo "Option -$OPTARG requires an argument." && usage 2 ;;
 	esac
 done
 
 # Are we on macOS at all?
-[ $(uname -s) = "Darwin" ] || exit 3
+[ "$(uname -s)" = "Darwin" ] || exit 3
 
 # Both options need an argument
-[ -z "$WARN" -o -z "$CRIT" ] && usage 2
+[ -z "$WARN" ] || [ -z "$CRIT" ] && usage 2
 
 # vm_stat prints its output in pages, so we need the page size
 PAGE_SIZE=$(getconf PAGE_SIZE)
@@ -49,13 +36,13 @@ PAGE_SIZE=$(getconf PAGE_SIZE)
 
 # vm_stat parsed, in MB
 # TODO: use awk(1) to parse those outputs!
-eval $(vm_stat | awk "/^Pages (free|active|inactive|wired)/ {print \$2, \$NF * $PAGE_SIZE / 1024 / 1024}" | sed 's/://;s/ /=/')
+eval "$(vm_stat | awk "/^Pages (free|active|inactive|wired)/ {print \$2, \$NF * $PAGE_SIZE / 1024 / 1024}" | sed 's/://;s/ /=/')"
 
 # total memory installed, in MB
 memsize=$(sysctl hw.memsize | awk '{print $2/1024/1024 }')
 
 # save a summary
-summary=$(echo "free: $free MB, active: $active MB, inactive: $inactive MB, wired: $wired MB, memsize: $memsize MB")
+summary="free: $free MB, active: $active MB, inactive: $inactive MB, wired: $wired MB, memsize: $memsize MB"
 
 #
 # FIXME: Now we have all the values, but how much "free" memory is too little? How much
@@ -76,22 +63,22 @@ summary=$(echo "free: $free MB, active: $active MB, inactive: $inactive MB, wire
 p_used=$(echo "scale=2; $wired / $memsize * 100" | bc -l)
 
 # Less than 0% used memory?
-if   [ $(echo $p_used \<= 0 | bc) = 1 ]; then
+if   [ "$(echo "$p_used" \<= 0 | bc)" = 1 ]; then
 	echo "UNKNOWN: ${p_used}% used memory - $summary"
 	exit 3
 
 # Less than WARN% used memory?
-elif [ $(echo $p_used \< $WARN | bc) = 1 ]; then
+elif [ "$(echo "$p_used" \< "$WARN" | bc)" = 1 ]; then
 	echo "OK: ${p_used}% used memory - $summary"
 	exit 0
 
 # Less than CRIT% used memory?
-elif [ $(echo $p_used \< $CRIT | bc) = 1 ]; then
+elif [ "$(echo "$p_used" \< "$CRIT" | bc)" = 1 ]; then
 	echo "WARNING: ${p_used}% used memory - $summary"
 	exit 1
 
 # More than CRIT% used memory?
-elif [ $(echo $p_used \>= $CRIT | bc) = 1 ]; then
+elif [ "$(echo "$p_used" \>= "$CRIT" | bc)" = 1 ]; then
 	echo "CRITICAL: ${p_used}% used memory - $summary"
 	exit 2
 fi

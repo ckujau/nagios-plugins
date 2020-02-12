@@ -37,7 +37,7 @@ if [ "$1" = "-w" ] && [ "$2" -gt "0" ] && [ "$3" = "-c" ] && [ "$4" -gt "0" ]; t
 	warn=$2
 	crit=$4
 else
-        echo "Usage: $(basename $0) -w [percent] -c [percent]"
+        echo "Usage: $(basename "$0") -w [percent] -c [percent]"
         exit 3
 fi
 
@@ -65,8 +65,8 @@ case $(uname -s) in
 	if ! grep -q 'MemAvailable:' /proc/meminfo; then
 	# Instead of using $3 from the free(1) output above, we'll calculate
 	# the used memory ourselves:
-	 memUsed_kb=$(($memTotal_kb - $memBuff_kb - $memCache_kb))
-	  memUsed_p=$((($memUsed_kb * 100) / $memTotal_kb))
+	 memUsed_kb=$((  memTotal_kb - memBuff_kb - memCache_kb))
+	  memUsed_p=$((( memUsed_kb * 100) / memTotal_kb))
 	else
 	#
 	# Also, since Linux 3.14 a new field "MemAvailable" has been introduced
@@ -76,12 +76,12 @@ case $(uname -s) in
 	# > https://blog.famzah.net/2014/09/24/memavailable-metric-for-linux-kernels-before-3-14-in-procmeminfo/
 	#
 	memAvail_kb=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
-	 memUsed_kb=$(($memTotal_kb - $memAvail_kb))
-	  memUsed_p=$((($memUsed_kb * 100) / $memTotal_kb))
+	 memUsed_kb=$((  memTotal_kb - memAvail_kb))
+	  memUsed_p=$((( memUsed_kb * 100) / memTotal_kb))
 	fi
 
 	# Generate output and performance data
-	O="Total: $(($memTotal_kb / 1024)) MB - Used: $(($memUsed_kb / 1024)) MB - $memUsed_p% used"
+	O="Total: $(( memTotal_kb / 1024)) MB - Used: $(( memUsed_kb / 1024)) MB - $memUsed_p% used"
 	P="TOTAL=$memTotal_kb;;;; USED=$memUsed_kb;;;; CACHE=$memCache_kb;;;; BUFFER=$memBuff_kb;;;;"
 	;;
 
@@ -121,14 +121,14 @@ case $(uname -s) in
 	# MemRegions: 25772 total, 1066M resident, 12M private, 143M shared.
 	# PhysMem: 396M wired, 1131M active, 372M inactive, 1899M used, 146M free.
 	#
-	memTotal_kb=$(expr $(/usr/sbin/sysctl -n hw.memsize) / 1024)
+	memTotal_kb=$( $(/usr/sbin/sysctl -n hw.memsize) / 1024)
 	  page_size=$(/usr/sbin/sysctl -n hw.pagesize)
 
 	# As per the description above, we'll just assume that "used" memory is "active" memory.
 	# The check_mem.pl script uses another metric (memTotal - memFree), but I don't care
 	# for "free" memory, as this number should be close to zero anyway.
 	 memUsed_kb=$(vm_stat | awk "/^Pages active:/     {print \$NF * $page_size / 1024}")
-	  memUsed_p=$((($memUsed_kb * 100) / $memTotal_kb))
+	  memUsed_p=$(( (memUsed_kb * 100) / memTotal_kb))
 
 	  memAct_kb=$memUsed_kb
 	memInact_kb=$(vm_stat | awk "/^Pages inactive:/   {print \$NF * $page_size / 1024}")
@@ -136,7 +136,7 @@ case $(uname -s) in
 	 memFree_kb=$(vm_stat | awk "/^Pages free:/       {print \$NF * $page_size / 1024}")
 
 	# Generate output and performance data
-	O="Total: $(($memTotal_kb / 1024)) MB - Used: $(($memUsed_kb / 1024)) MB - $memUsed_p% used / Active: $(($memAct_kb / 1024)) MB / Inactive: $(($memInact_kb / 1024)) MB / Wired: $(($memWired_kb / 1024)) MB / Free: $(($memFree_kb / 1024)) MB"
+	O="Total: $(( memTotal_kb / 1024)) MB - Used: $(( memUsed_kb / 1024)) MB - $memUsed_p% used / Active: $(( memAct_kb / 1024)) MB / Inactive: $(( memInact_kb / 1024)) MB / Wired: $(( memWired_kb / 1024)) MB / Free: $(( memFree_kb / 1024)) MB"
 	P="TOTAL=$memTotal_kb;;;; USED=$memUsed_kb;;;; ACTIVE=$memAct_kb;;;; INACTIVE=$memInact_kb;;;; WIRED=$memWired_kb;;;; FREE=$memFree_kb;;;;"
 	;;
 
@@ -152,14 +152,15 @@ esac
 # exit 100
 
 # Check against thresholds
-if   [ "$memUsed_p" -ge "$4" ]; then
+if   [ "$memUsed_p" -ge "$crit" ]; then
 	echo "CRITICAL: $O|$P"
 	exit 2
 
-elif [ "$memUsed_p" -ge "$2" ]; then
+elif [ "$memUsed_p" -ge "$warn" ]; then
 	echo "WARNING: $O|$P"
 	exit 1
-elif [ "$memUsed_p" -lt "$2" ]; then
+
+elif [ "$memUsed_p" -lt "$warn" ]; then
 	echo "OK: $O|$P"
 	exit 0
 else

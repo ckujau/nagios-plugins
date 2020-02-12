@@ -9,7 +9,7 @@ CONFDIR="/etc/rsnapshot"
 LOGFILE="/var/log/rsnapshot/rsnapshot-wrapper.log"
 
 if [ -z "$1" ]; then
-	echo "Usage: $(basename $0) [days]"
+	echo "Usage: $(basename "$0") [days]"
 	exit 3
 else
 	DAYS="$1"
@@ -17,16 +17,16 @@ fi
 
 # Let's create the date(1) strings to search for. It's messy, but it works
 # with GNU/date
-SEARCH=$(for i in `seq 0 $DAYS`; do
+SEARCH=$(for i in $(seq 0 "$DAYS"); do
 	date -d "${i} days ago" +%Y-%m-%d
 done | xargs echo | sed 's/ /|/g')
 
 ERR=0
 for f in "$CONFDIR"/*.conf; do
 	# Skip hosts where missing backups can be ignored.
-	fgrep -q '##Nagios:check_rsnapshot-completed:ignore' "$f" && continue
+	grep -Fq '##Nagios:check_rsnapshot-completed:ignore' "$f" && continue
 	unset HOST NAME
-	eval `awk -F\# '/^##HOST=/ {print $3}' "$f" | sed 's/PORT.*//'`
+	eval "$(awk -F\# '/^##HOST=/ {print $3}' "$f" | sed 's/PORT.*//')"
 
 	# Sometimes NAME != HOST in the configuration file
 	if [ -n "$NAME" ]; then
@@ -35,14 +35,13 @@ for f in "$CONFDIR"/*.conf; do
 		host="$HOST"
 	fi
 
-	grep "$host" "$LOGFILE" | egrep 'finished|already has a daily backup from today' | egrep -q "^(${SEARCH})"
-	if [ $? -ne 0 ]; then
+	if grep "$host" "$LOGFILE" | grep -E 'finished|already has a daily backup from today' | grep -Eq "^(${SEARCH})"; then
 		MSG="${MSG}$host "
 		ERR=$((ERR+1))
 	fi
 done
 
-IGN=" ($(fgrep -l '##Nagios:check_rsnapshot-completed:ignore' "$CONFDIR"/*.conf | wc -l) hosts ignored)"
+IGN=" ($(grep -Fl '##Nagios:check_rsnapshot-completed:ignore' "$CONFDIR"/*.conf | wc -l) hosts ignored)"
 case $ERR in
 	0)
 	echo "OK - Every host made a backup in the last $DAYS days.${IGN}"

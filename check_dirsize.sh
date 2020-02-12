@@ -10,17 +10,11 @@ usage() {
 
 while getopts "w:c:d:h" opt; do
         case $opt in
-        w)
-	warn=${OPTARG}
-	;;
-
-	c)
-	crit=${OPTARG}
-	;;
-
-	d)
-	 dir=${OPTARG}
-	;;
+        w) warn=${OPTARG} ;;
+	c) crit=${OPTARG} ;;
+	d) dir=${OPTARG} ;;
+	h) usage ;;
+	*) usage ;;
 	esac
 done
 
@@ -30,15 +24,15 @@ done
 # FIXME: Can we make the call to du(1) portable across multiple platforms?
 SIZE=$(du -skx "$dir" 2>/dev/null | awk '{print $1}')
 
-if   [ $SIZE -le $crit ]; then
+if   [ "$SIZE" -le "$crit" ]; then
 	echo "CRITICAL: directory $dir is smaller than $crit KB! ($SIZE KB)"
 	exit 2
 
-elif [ $SIZE -le $warn ]; then
+elif [ "$SIZE" -le "$warn" ]; then
 	echo "WARNING: directory $dir is smaller than $warn KB! ($SIZE KB)"
 	exit 1
 
-elif [ $SIZE -gt $warn ]; then
+elif [ "$SIZE" -gt "$warn" ]; then
 	echo "OK: directory $dir is big enough. ($SIZE KB)"
 	exit 0
 
