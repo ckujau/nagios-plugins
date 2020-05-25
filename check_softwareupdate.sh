@@ -3,14 +3,15 @@
 # (c)2015 Christian Kujau <lists@nerdbynature.de>
 # Nagios check for software updates with various package managers.
 #
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
 RESULT=$(mktemp 2>/dev/null || mktemp -t check_softwareupdate)		# MacOS prior to 10.11 needs an argument.
 trap "rm -f $RESULT" EXIT INT TERM HUP
 
 ERR=3
 case $1 in
 	apk)
-	sudo /sbin/apk update > /dev/null || ERR=3
-	sudo /sbin/apk upgrade --simulate | awk '/Upgrading/ {print $3}' > "$RESULT" || ERR=3
+	sudo apk update > /dev/null || ERR=3
+	sudo apk upgrade --simulate | awk '/Upgrading/ {print $3}' > "$RESULT" || ERR=3
 	grep -Eq "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
@@ -22,11 +23,11 @@ case $1 in
 	# file. Here, we will only check that state file.
 	[ -r "$2" ] && STATE="$2" || exit 3
 	TIMEDIFF=172800					# State file should be no older than 2 days.
-	T_PACKAGE=$(date -r "$STATE" +%s)
+	T_PACKAGE=$(date -r $STATE +%s)
 	    T_NOW=$(date +%s)
 
 	# Check if our package lists are somewhat current.
-	if [ $(( T_NOW - TIMEDIFF )) -gt "$T_PACKAGE" ]; then
+	if [ $(expr $T_NOW - $TIMEDIFF ) -gt $T_PACKAGE ]; then
 		echo "Statefile ${STATE} is too old!" > "$RESULT"
 		ERR=3
 	else
@@ -50,7 +51,7 @@ case $1 in
 	# When using SELinux, we need to set the security context for this script:
 	# > /sbin/restorecon -v ../check_softwareupdate.sh
 	#
-	sudo /usr/bin/dnf check-update > "$RESULT"
+	sudo dnf check-update > "$RESULT"
 	case $? in
 		0)
 		ERR=0
@@ -74,7 +75,7 @@ case $1 in
 	# > nagios  ALL=(admin) NOPASSWD:SETENV: /usr/local/bin/brew outdated
 	sudo -u admin /usr/local/bin/brew update > /dev/null || exit 3
 	sudo -u admin /usr/local/bin/brew outdated > "$RESULT"
-	grep -Eq "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
+	grep -q "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
 	macports)
@@ -124,13 +125,13 @@ case $1 in
 	CNT_PKGS=$(opkg list | wc -l)
 
 	# Check if our package lists are somewhat complete.
-	if [ "$CNT_PKGS" -lt $MIN_PKGS ]; then
+	if [ $CNT_PKGS -lt $MIN_PKGS ]; then
 		echo "Our package lists may not be complete!" > "$RESULT"
 		ERR=3
 	fi
 
 	# Check if our package lists are somewhat current.
-	if [ $(( T_NOW - TIMEDIFF )) -gt "$T_PACKAGE" ]; then
+	if [ $(expr $T_NOW - $TIMEDIFF ) -gt $T_PACKAGE ]; then
 		echo "Package lists are too old!" > "$RESULT"
 		ERR=3
 	else
@@ -143,24 +144,30 @@ case $1 in
 	osx)
 	# This will need the following sudoers(5) rule:
 	# > nagios  ALL=(ALL) NOPASSWD: /usr/sbin/softwareupdate -l
-	sudo /usr/sbin/softwareupdate -l > "$RESULT" 2>&1 || exit 3
+	sudo softwareupdate -l > "$RESULT" 2>&1 || exit 3
 	grep -q "No new software available." "$RESULT"
 	ERR=$?
 	;;
 
 	pacman)
-	sudo /usr/bin/pacman --sync --refresh --sysupgrade --print > "$RESULT" || exit 3
+	sudo pacman --sync --refresh --sysupgrade --print > "$RESULT" || exit 3
 	sed -i '/^http/!d' "$RESULT" || exit 3
 	grep -Eq '^http' "$RESULT" && ERR=1 || ERR=0
 	;;
 
+	xbps)
+	xbps-install --sync --update --dry-run > "$RESULT" || exit 3
+	sed -i 's|https://.*||' "$RESULT" || exit 3
+	grep -E '^[a-z]' "$RESULT" && ERR=1 || ERR=0
+	;;
+
 	zypper)
-	sudo /usr/bin/zypper list-updates | awk '/^v/ {printf $5}' > "$RESULT" || exit 3
+	sudo zypper list-updates | awk '/^v/ {printf $5}' > "$RESULT" || exit 3
 	grep -Eq "[[:alnum:]]" "$RESULT" && ERR=1 || ERR=0
 	;;
 
 	*)
-	echo "Usage: $(basename "$0") [apk|cron|dnf|homebrew|macports|opkg|osx|pacman|zypper]"
+	echo "Usage: $(basename $0) [apk|cron|dnf|homebrew|macports|opkg|osx|pacman|xbps|zypper]"
 	exit 3
 	;;
 esac
