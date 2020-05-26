@@ -12,34 +12,40 @@
 # 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper apk /var/tmp/nagios_updates.txt
 #
 _usage() {
-	echo "Usage: $(basename $0) [apk|dnf] [state file]"
-	echo "   Ex: $(basename $0) apk /var/tmp/nagios_updates.txt"
-	echo "   Ex: $(basename $0) dnf ~nrpe/nagios_updates.txt"
+	echo "Usage: $(basename "$0") [apk|dnf|opkg] [state file]"
+	echo "   Ex: $(basename "$0") apk /var/tmp/nagios_updates.txt"
+	echo "   Ex: $(basename "$0") dnf ~nrpe/nagios_updates.txt"
+	echo "   Ex: $(basename "$0") opkg /tmp/opkg_list-upgradable.txt"
 	exit 1
 }
 
 # Sanity check
 [ $# -eq 2 ] && STATE="$2" || _usage
 
-if [ -f ${STATE} ] && [ ! -O ${STATE} ]; then
-	echo "State file ${STATE} already in place but not owned by UID ${UID}!"
+# Readable STATE file?
+if [ -f "${STATE}" ] && [ ! -O "${STATE}" ]; then
+	echo "State file ${STATE} already in place but not owned by UID $(id -u)!"
 	exit 1
 else
-	touch ${STATE} && chmod a+r ${STATE}
+	touch "${STATE}" && chmod a+r "${STATE}"
 fi
 
 case $1 in
 	apk)
 	apk update --quiet
-	apk upgrade --simulate | grep Upgrading | sed 's/.*Upgrading/Package:/' > "$STATE"
+	apk upgrade --simulate | grep Upgrading | sed 's/.*Upgrading/Package:/' > "${STATE}"
 	;;
 
 	dnf)
-	dnf check-update | egrep -v '^Last metadata|^$' | sed 's/^/Package: /'  > "$STATE"
+	dnf check-update | grep -Ev '^Last metadata|^$' | sed 's/^/Package: /'  > "${STATE}"
+	;;
+
+	opkg)
+	opkg update > /dev/null
+	opkg list-upgradable | awk '{print "Package:", $1}' | sort > "${STATE}"
 	;;
 
 	*)
-	echo "Usage: $(basename $0) [apk|dnf]"
-	exit 1
+	_usage
 	;;
 esac
