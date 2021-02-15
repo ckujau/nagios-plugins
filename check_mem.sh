@@ -62,7 +62,13 @@ case $(uname -s) in
 	 memBuff_kb=$(awk '/^Buffers:/  {print $2}' /proc/meminfo)
 	memCache_kb=$(awk '/^Cached:/   {print $2}' /proc/meminfo)
 
-	if ! grep -q 'MemAvailable:' /proc/meminfo; then
+        if test -f "/proc/spl/kstat/zfs/arcstats"; then
+        # Get the size of the ZFS ARC in kb and include it with cache
+         memZfsArc_kb=$(awk '/^size/ { printf "%i\n", $3 / 1024 }' </proc/spl/kstat/zfs/arcstats)
+         memCache_kb=$(( memCache_kb + memZfsArc_kb))
+        fi
+
+	if ! grep -q 'MemAvailable:' /proc/meminfo || test -f "/proc/spl/kstat/zfs/arcstats" ; then
 	# Instead of using $3 from the free(1) output above, we'll calculate
 	# the used memory ourselves:
 	 memUsed_kb=$((  memTotal_kb - memBuff_kb - memCache_kb))
@@ -71,6 +77,8 @@ case $(uname -s) in
 	#
 	# Also, since Linux 3.14 a new field "MemAvailable" has been introduced
 	# into /proc/meminfo, so we could make use of that too.
+	#
+	# HOWEVER this conflicts with including ARC stats, since the kernel treats ARC as ordinary allocation.
 	#
 	# > MemAvailable metric for Linux kernels before 3.14 in /proc/meminfo
 	# > https://blog.famzah.net/2014/09/24/memavailable-metric-for-linux-kernels-before-3-14-in-procmeminfo/
