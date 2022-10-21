@@ -8,8 +8,9 @@
 #
 # A cron job would look like this:
 # 
-# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper dnf /var/run/nrpe/nagios_updates.txt
-# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper apk /var/tmp/nagios_updates.txt
+# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper apk  /var/tmp/nagios_updates.txt
+# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper dnf  /var/run/nrpe/nagios_updates.txt
+# 0 */12  * * * /usr/local/sbin/check_softwareupdate_helper opkg /tmp/opkg_list-upgradable.txt
 #
 _usage() {
 	echo "Usage: $(basename "$0") [apk|dnf|opkg] [state file]"
